@@ -1,0 +1,91 @@
+[] Concepts
+    [] Neural Network basics
+    [] Fully-Connected Neural Networks (FCNN)
+    [] MLP (Multilayer Perceptron)
+    [] Hidden layers
+    [] Activation functions (sigmoid, ReLU, softmax)
+    [] Forward propagation
+    [] Backward propagation
+    [] Loss functions (Binary Cross-Entropy)
+    [] Dropout regularization
+    [] Baseline models
+    [] Naive classifier
+    [] Random forest
+    [] Grid search
+    [] Stratification
+    [] AUC-ROC metric
+
+[] Data Setup
+    [] Download script for p01_bank_data.zip
+    [] Store in data/ subfolder
+    [] Load train.csv and test.csv
+
+[] EDA (Exploratory Data Analysis)
+    [] Check data shape, types
+    [] Target distribution (class imbalance?)
+    [] Missing values analysis
+    [] Feature distributions
+    [] Correlations
+
+[] Preprocessing
+    [] Handle missing values
+    [] Handle anomalies/outliers
+    [] Feature engineering/generation
+    [] Feature selection
+    [] Encode categorical variables
+    [] Scale/normalize features (essential for NN!)
+    [] Handle class imbalance (if needed)
+    [] Stratified train/validation split (80/20)
+
+[] Model Training
+    [] 1. Baseline - Naive classifier (most frequent class)
+    [] 2. Random Forest + Grid Search
+    [] 3. Scikit-learn MLPClassifier + Grid Search
+    [] 4. Keras implementation + tuning
+    [] 5. TensorFlow implementation + tuning
+    [] 6. NumPy from scratch (OOP, best architecture)
+        [] Class structure
+        [] Weight initialization
+        [] Forward propagation (matrix ops)
+        [] Activation functions
+        [] Loss calculation
+        [] Backward propagation (gradients)
+        [] Weight updates (SGD/Adam)
+        [] Dropout implementation
+        [] Training loop
+        [] Inference method
+
+[] Evaluation & Results
+    [] Track accuracy for all models
+    [] Track AUC for all models
+    [] Create results comparison table:
+        [] Library/Framework name
+        [] Algorithm
+        [] Hyperparameters
+        [] Accuracy score
+        [] AUC score
+    [] Ensure best NN model achieves AUC ≥ 0.8183
+
+[] Final Predictions
+    [] Generate predictions on test.csv (not your split!)
+    [] Create CSV with "ID" and "TARGET" columns
+    [] Maintain same order as test dataset
+    [] TARGET = class or probability
+
+[] Submission
+    [] Well-formatted Jupyter notebook(s)
+    [] Prediction CSV file
+    [] All models implemented
+    [] Results table included
+    [] Push to Git repository
+
+[] Code Quality
+    [] OOP principles for NumPy implementation
+    [] Clean, commented code
+    [] Clear structure
+
+[] Bonus (Optional)
+    [] Achieve AUC ≥ 0.83
+    [] Achieve AUC ≥ 0.85
+
+
