@@ -14,6 +14,8 @@
     [] Grid search
     [] Stratification
     [] AUC-ROC metric
+    [] Feature engineering
+    [] Data Leackage
 
 [✓] Data Setup
     [✓] Download script for p01_bank_data.zip
@@ -21,7 +23,7 @@
     [✓] Load train.csv and test.csv
 
 [] EDA (Exploratory Data Analysis)
-    [] Check data shape, types
+    [✓] Check data shape, types
     [] Target distribution (class imbalance?)
     [] Missing values analysis
     [] Feature distributions
