@@ -22,26 +22,26 @@
     [✓] Store in data/ subfolder
     [✓] Load train.csv and test.csv
 
-[] EDA (Exploratory Data Analysis)
+[✓] EDA (Exploratory Data Analysis)
     [✓] Check data shape, types
-    [] Target distribution (class imbalance?)
-    [] Missing values analysis
-    [] Feature distributions
-    [] Correlations
+    [✓] Target distribution (class imbalance?)
+    [✓] Missing values analysis
+    [✓] Feature distributions
+    [✓] Correlations
 
-[] Preprocessing
-    [] Handle missing values
-    [] Handle anomalies/outliers
-    [] Feature engineering/generation
-    [] Feature selection
-    [] Encode categorical variables
-    [] Scale/normalize features (essential for NN!)
-    [] Handle class imbalance (if needed)
-    [] Stratified train/validation split (80/20)
+[✓] Preprocessing
+    [✓] Handle missing values
+    [✓] Handle anomalies/outliers
+    [✓] Feature engineering/generation
+    [✓] Feature selection
+    [✓] Encode categorical variables
+    [✓] Scale/normalize features (essential for NN!)
+    [✓] Handle class imbalance (if needed)
+    [✓] Stratified train/validation split (80/20)
 
 [] Model Training
-    [] 1. Baseline - Naive classifier (most frequent class)
-    [] 2. Random Forest + Grid Search
+    [✓] 1. Baseline - Naive classifier (most frequent class)
+    [✓] 2. Random Forest + Grid Search
     [] 3. Scikit-learn MLPClassifier + Grid Search =>  AUC at least equal 0.818
     [] 4. Keras implementation + tuning =>  AUC at least equal 0.818
     [] 5. TensorFlow implementation + tuning =>  AUC at least equal 0.818
