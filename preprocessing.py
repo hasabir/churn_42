@@ -298,6 +298,65 @@ class Preprocessor:
         
         return X_resampled, y_resampled
 
+
+    def transform_test(self, test_path: str):
+        """
+        Transform test data using fitted objects from training.
+        """
+        # 1. VALIDATION CHECK
+        if self.scaler is None:
+            raise ValueError("Must call fit_transform_train() before transform_test()")
+        
+        # 2. LOAD DATA
+        df = self.load_data(test_path)  # pd.read_csv(test_path)
+        
+        # 3. DROP COLUMNS (same ones dropped during training)
+        df = self.analyze_and_drop_columns(df, fit=False)
+
+        
+        # 4. NORMALIZE CATEGORICAL TEXT
+        df = self.normalize_categorical_columns(df)
+        # Uppercase, strip whitespace, replace 'NAN' with np.nan
+        
+        # 5. SEPARATE FEATURES AND TARGET
+        if 'TARGET' in df.columns:
+            X_test = df.drop(columns=['TARGET'])
+            y_test = df['TARGET']
+        else:
+            X_test = df
+            y_test = None
+        
+        # 6. IMPUTE MISSING VALUES (using training statistics)
+        X_test = self.apply_imputation(X_test, self.imputation_values)
+        # ☝️ Uses: self.imputation_values = {
+        #     'age': 45.0,  # median from training
+        #     'contract_type': 'MONTH-TO-MONTH',  # mode from training
+        #     ...
+        # }
+        
+        # 7. ENCODE CATEGORICAL VARIABLES (using fitted encoders)
+        X_test = self.apply_encoders(X_test, self.encoders)
+        # ☝️ Uses: self.encoders = {
+        #     'target_encoder': <fitted TargetEncoder>,
+        #     'low_card_cols': ['contract_type', 'gender'],
+        #     'high_card_cols': ['customer_id'],
+        #     'global_mean': 0.26  # from training
+        # }
+        
+        # 8. ALIGN COLUMNS TO TRAINING (add missing, remove extra)
+        X_test = self.align_columns(X_test, self.final_columns)
+        # ☝️ Uses: self.final_columns = ['age', 'tenure', 'contract_type_ONE_YEAR', ...]
+        
+        # 9. SCALE FEATURES (using fitted scaler)
+        X_test = pd.DataFrame(
+            self.scaler.transform(X_test),  # Uses fitted StandardScaler
+            columns=X_test.columns,
+            index=X_test.index
+        )
+        
+        # 10. RETURN
+        return X_test, y_test
+
 def process_data(file_path: str) -> pd.DataFrame:
     ''' Process the data from the given file path
     Args:
@@ -318,7 +377,7 @@ def process_data(file_path: str) -> pd.DataFrame:
     X_train, X_test, y_train, y_test = preprocessor.split_data(df, target_col='TARGET')
     print(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}")
     
-    # 1) Fill missing values using training statistics (important to do before encoding)
+    # 1) Fill missing values using training statistics
     X_train_filled, X_test_filled = preprocessor.fill_missing_with_mean(X_train, X_test)
     print(f"\nAfter initial fillna\nTrain nulls: {X_train_filled.isnull().sum().sum()}")
     print(f"Test nulls: {X_test_filled.isnull().sum().sum()}")
@@ -387,3 +446,349 @@ if __name__ == "__main__":
     
     
     
+    
+    
+    
+    
+#************************************************************************
+
+
+# import pandas as pd
+# import numpy as np
+# import category_encoders as ce
+# from sklearn.model_selection import train_test_split
+# from imblearn.over_sampling import SMOTE
+# from scipy.stats import chi2_contingency
+# from sklearn.preprocessing import StandardScaler
+
+
+# class Preprocessor:
+#     def __init__(self):
+#         self.THRESHOLD = 0.7  # 70% missing values threshold (fixed spelling & value)
+
+#     def load_data(self, file_path: str) -> pd.DataFrame:
+#         """Load data from CSV file."""
+#         return pd.read_csv(file_path)
+    
+#     @staticmethod
+#     def cramers_v(x, y):
+#         """Measure association between categorical x and binary y (TARGET)"""
+#         confusion_matrix = pd.crosstab(x, y)
+#         chi2 = chi2_contingency(confusion_matrix)[0]
+#         n = confusion_matrix.sum().sum()
+#         phi2 = chi2 / n
+#         r, k = confusion_matrix.shape
+#         return np.sqrt(phi2 / min(k-1, r-1))
+    
+#     def analyze_data(self, df: pd.DataFrame) -> pd.DataFrame:
+#         """
+#         Analyze and drop columns with high missing values and low correlation with TARGET.
+#         """
+#         print(f"\nAnalyzing columns with >{self.THRESHOLD*100}% missing values...")
+#         print(f"df shape before dropping columns: {df.shape}")
+        
+#         high_missing = df.columns[df.isnull().sum() / len(df) > self.THRESHOLD]
+#         print(f"Columns with >{self.THRESHOLD*100}% missing: {list(high_missing)}")
+        
+#         for col in high_missing:
+#             if col == 'TARGET':
+#                 continue
+            
+#             if df[col].dtype == 'object':
+#                 # Categorical column
+#                 corr = self.cramers_v(df[col].dropna(), df.loc[df[col].notnull(), 'TARGET'])
+#                 if corr < 0.1:
+#                     print(f"Dropping {col} due to low correlation ({corr:.3f})")
+#                     df = df.drop(columns=[col])
+#             else:
+#                 # Numerical column
+#                 series_num = pd.to_numeric(df[col], errors='coerce')
+#                 corr = series_num.corr(df['TARGET'])
+#                 if pd.notnull(corr) and abs(corr) < 0.05:
+#                     print(f"Dropping {col} due to low correlation ({corr:.3f})")
+#                     df = df.drop(columns=[col])
+        
+#         print(f"df shape after dropping columns: {df.shape}")
+#         return df
+    
+#     def normalize_categorical_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+#         """Normalize categorical columns by cleaning text."""
+#         cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+        
+#         for col in cat_cols:
+#             df[col] = df[col].astype(str).str.upper().str.strip()
+#             df[col] = df[col].replace('NAN', np.nan)
+#             df[col] = df[col].replace('', np.nan)
+        
+#         return df
+    
+#     def split_data(self, df: pd.DataFrame, target_col: str) -> tuple:
+#         """Split into train/test with stratification."""
+#         X = df.drop(columns=[target_col])
+#         y = df[[target_col]]
+        
+#         X_train, X_test, y_train, y_test = train_test_split(
+#             X, y, test_size=0.2, random_state=42, stratify=y
+#         )
+#         return X_train, X_test, y_train, y_test
+    
+#     def fill_missing_values(self, X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple:
+#         """
+#         Fill missing values using training set statistics.
+#         - Numeric: median
+#         - Categorical: mode or 'MISSING'
+#         """
+#         X_train = X_train.copy()
+#         X_test = X_test.copy()
+        
+#         # Separate numeric and categorical columns
+#         num_cols = X_train.select_dtypes(include=[np.number]).columns.tolist()
+#         cat_cols = [c for c in X_train.columns if c not in num_cols]
+        
+#         # Fill numeric with median
+#         if num_cols:
+#             medians = X_train[num_cols].median()
+#             for col in num_cols:
+#                 X_train[col] = X_train[col].fillna(medians[col])
+#                 if col in X_test.columns:
+#                     X_test[col] = X_test[col].fillna(medians[col])
+        
+#         # Fill categorical with mode
+#         for col in cat_cols:
+#             if col not in X_train.columns:
+#                 continue
+            
+#             if X_train[col].isnull().all():
+#                 fill_val = 'MISSING'
+#             else:
+#                 mode_vals = X_train[col].mode(dropna=True)
+#                 fill_val = mode_vals.iloc[0] if not mode_vals.empty else 'MISSING'
+            
+#             X_train[col] = X_train[col].fillna(fill_val)
+#             if col in X_test.columns:
+#                 X_test[col] = X_test[col].fillna(fill_val)
+        
+#         return X_train, X_test
+    
+#     def fit_encoders(self, X_train: pd.DataFrame, y_train: pd.Series) -> dict:
+#         """
+#         Fit encoders on training data.
+#         - Low cardinality (<10 unique): One-hot encoding
+#         - High cardinality (>=10 unique): Target encoding
+#         """
+#         obj_cols = X_train.select_dtypes(include=['object']).columns.tolist()
+        
+#         # Categorize by cardinality
+#         low_card_cols = []
+#         high_card_cols = []
+        
+#         for col in obj_cols:
+#             if X_train[col].isnull().all():
+#                 continue
+            
+#             unique_count = X_train[col].nunique(dropna=True)
+#             if unique_count < 10:
+#                 low_card_cols.append(col)
+#             else:
+#                 high_card_cols.append(col)
+        
+#         # Fit target encoder
+#         target_encoder = None
+#         if high_card_cols:
+#             target_encoder = ce.TargetEncoder(cols=high_card_cols, smoothing=1.0)
+#             # Only fit on rows with no nulls
+#             valid_mask = X_train[high_card_cols].notna().all(axis=1) & y_train['TARGET'].notna()
+#             target_encoder.fit(
+#                 X_train.loc[valid_mask, high_card_cols], 
+#                 y_train.loc[valid_mask, 'TARGET']
+#             )
+        
+#         return {
+#             'low_card_cols': low_card_cols,
+#             'high_card_cols': high_card_cols,
+#             'target_encoder': target_encoder,
+#             'global_mean': y_train['TARGET'].mean()
+#         }
+    
+#     def transform_with_encoders(self, X: pd.DataFrame, encoders_dict: dict) -> pd.DataFrame:
+#         """Apply fitted encoders to data."""
+#         X = X.copy()
+        
+#         # Target encode high-cardinality columns
+#         if encoders_dict['high_card_cols'] and encoders_dict['target_encoder']:
+#             high_card_cols = encoders_dict['high_card_cols']
+#             print(f"\nTarget encoding: {high_card_cols}")
+            
+#             # Fill any remaining NaNs with placeholder before encoding
+#             for col in high_card_cols:
+#                 if col in X.columns:
+#                     X[col] = X[col].fillna('MISSING_CATEGORY')
+            
+#             # Transform
+#             try:
+#                 X_encoded = encoders_dict['target_encoder'].transform(X[high_card_cols])
+#                 for col in high_card_cols:
+#                     if col in X.columns:
+#                         X[col] = X_encoded[col]
+#                         # Fill any unseen categories with global mean
+#                         X[col] = X[col].fillna(encoders_dict['global_mean'])
+#             except Exception as e:
+#                 print(f"Target encoding failed: {e}")
+#                 for col in high_card_cols:
+#                     if col in X.columns:
+#                         X[col] = encoders_dict['global_mean']
+        
+#         # One-hot encode low-cardinality columns
+#         if encoders_dict['low_card_cols']:
+#             print(f"One-hot encoding: {encoders_dict['low_card_cols']}")
+#             X = pd.get_dummies(X, columns=encoders_dict['low_card_cols'], drop_first=True)
+        
+#         return X
+    
+#     def adjust_test_columns(self, X_train: pd.DataFrame, X_test: pd.DataFrame) -> pd.DataFrame:
+#         """Align test columns to match training columns."""
+#         print("\nAligning train/test columns...")
+#         train_cols = set(X_train.columns)
+#         test_cols = set(X_test.columns)
+        
+#         # Add missing columns
+#         for col in train_cols - test_cols:
+#             X_test[col] = 0
+#             print(f"Added missing column: {col}")
+        
+#         # Remove extra columns
+#         for col in test_cols - train_cols:
+#             X_test = X_test.drop(columns=[col])
+#             print(f"Removed extra column: {col}")
+        
+#         # Reorder to match training
+#         X_test = X_test[X_train.columns]
+#         return X_test
+
+
+# def process_data(file_path: str) -> tuple:
+#     """
+#     Complete preprocessing pipeline for churn prediction.
+    
+#     Returns:
+#         (X_train_balanced, X_test_scaled, y_train_balanced, y_test)
+#     """
+#     preprocessor = Preprocessor()
+    
+#     # 1. Load and clean
+#     print("=" * 60)
+#     print("STEP 1: Loading and analyzing data")
+#     print("=" * 60)
+#     df = preprocessor.load_data(file_path)
+#     df = preprocessor.analyze_data(df)
+#     df = preprocessor.normalize_categorical_columns(df)
+    
+#     # 2. Split
+#     print("\n" + "=" * 60)
+#     print("STEP 2: Splitting data")
+#     print("=" * 60)
+#     X_train, X_test, y_train, y_test = preprocessor.split_data(df, target_col='TARGET')
+#     print(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}")
+#     print(f"Class distribution:\n{y_train['TARGET'].value_counts()}")
+    
+#     # 3. Fill missing values FIRST
+#     print("\n" + "=" * 60)
+#     print("STEP 3: Imputing missing values")
+#     print("=" * 60)
+#     print(f"Before imputation - Train nulls: {X_train.isnull().sum().sum()}")
+#     print(f"Before imputation - Test nulls: {X_test.isnull().sum().sum()}")
+    
+#     X_train, X_test = preprocessor.fill_missing_values(X_train, X_test)
+    
+#     print(f"After imputation - Train nulls: {X_train.isnull().sum().sum()}")
+#     print(f"After imputation - Test nulls: {X_test.isnull().sum().sum()}")
+    
+#     # 4. Encode categorical variables
+#     print("\n" + "=" * 60)
+#     print("STEP 4: Encoding categorical variables")
+#     print("=" * 60)
+#     encoders = preprocessor.fit_encoders(X_train, y_train)
+#     X_train = preprocessor.transform_with_encoders(X_train, encoders)
+#     X_test = preprocessor.transform_with_encoders(X_test, encoders)
+    
+#     # 5. Align columns
+#     X_test = preprocessor.adjust_test_columns(X_train, X_test)
+    
+#     # Verify no nulls remain
+#     train_nulls = X_train.isnull().sum().sum()
+#     test_nulls = X_test.isnull().sum().sum()
+#     if train_nulls > 0 or test_nulls > 0:
+#         print(f"\n⚠️ WARNING: Nulls remain after encoding!")
+#         print(f"Train nulls: {train_nulls}, Test nulls: {test_nulls}")
+#         print("Filling remaining nulls with 0...")
+#         X_train = X_train.fillna(0)
+#         X_test = X_test.fillna(0)
+    
+#     # 6. Scale features
+#     print("\n" + "=" * 60)
+#     print("STEP 5: Scaling features")
+#     print("=" * 60)
+#     scaler = StandardScaler()
+#     X_train = pd.DataFrame(
+#         scaler.fit_transform(X_train),
+#         columns=X_train.columns,
+#         index=X_train.index
+#     )
+#     X_test = pd.DataFrame(
+#         scaler.transform(X_test),
+#         columns=X_test.columns,
+#         index=X_test.index
+#     )
+#     print(f"Train shape after scaling: {X_train.shape}")
+    
+#     # 7. Apply SMOTE (only on training)
+#     print("\n" + "=" * 60)
+#     print("STEP 6: Balancing classes with SMOTE")
+#     print("=" * 60)
+#     print(f"Before SMOTE: {y_train['TARGET'].value_counts().to_dict()}")
+    
+#     # FIXED: Use 'auto' instead of 'minority'
+#     smote = SMOTE(sampling_strategy='auto', random_state=42)
+#     X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train['TARGET'])
+    
+#     # Convert back to DataFrames
+#     X_train_balanced = pd.DataFrame(X_train_balanced, columns=X_train.columns)
+#     y_train_balanced = pd.DataFrame(y_train_balanced, columns=['TARGET'])
+    
+#     print(f"After SMOTE: {y_train_balanced['TARGET'].value_counts().to_dict()}")
+#     print(f"Final train shape: {X_train_balanced.shape}")
+    
+#     print("\n" + "=" * 60)
+#     print("PREPROCESSING COMPLETE")
+#     print("=" * 60)
+    
+#     return X_train_balanced, X_test, y_train_balanced, y_test
+
+
+# def main():
+#     import os
+    
+#     if not os.path.exists('data/bank_data_train.csv'):
+#         print("❌ Data file not found. Please ensure 'data/bank_data_train.csv' exists.")
+#         return
+    
+#     X_train, X_test, y_train, y_test = process_data('data/bank_data_train.csv')
+    
+#     print("\n" + "=" * 60)
+#     print("FINAL DATA SUMMARY")
+#     print("=" * 60)
+#     print(f"\n📊 X_train shape: {X_train.shape}")
+#     print(f"Sample:\n{X_train.head()}\n")
+    
+#     print(f"📊 X_test shape: {X_test.shape}")
+#     print(f"Sample:\n{X_test.head()}\n")
+    
+#     print(f"🎯 y_train shape: {y_train.shape}")
+#     print(f"Distribution:\n{y_train['TARGET'].value_counts()}\n")
+    
+#     print(f"🎯 y_test shape: {y_test.shape}")
+#     print(f"Distribution:\n{y_test['TARGET'].value_counts()}\n")
+
+
+# if __name__ == "__main__":
+#     main()
